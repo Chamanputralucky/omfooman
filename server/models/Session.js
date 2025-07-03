@@ -2,6 +2,8 @@ const supabase = require('../config/supabase');
 
 class Session {
   static async create(sessionId, userId, sessionData) {
+    console.log(`📝 Creating session in DB: ${sessionId}`);
+    
     const { data, error } = await supabase
       .from('sessions')
       .insert([{
@@ -16,9 +18,11 @@ class Session {
       .single();
     
     if (error) {
+      console.error('Session create error:', error);
       throw error;
     }
     
+    console.log(`✅ Session created in DB: ${sessionId}`);
     return data;
   }
 
@@ -31,6 +35,7 @@ class Session {
       .single();
     
     if (error && error.code !== 'PGRST116') {
+      console.error('Session findById error:', error);
       throw error;
     }
     
@@ -38,10 +43,13 @@ class Session {
   }
 
   static async update(sessionId, sessionData) {
+    console.log(`🔄 Updating session in DB: ${sessionId}`);
+    
     const { data, error } = await supabase
       .from('sessions')
       .update({
         session_data: sessionData,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('session_id', sessionId)
@@ -49,9 +57,11 @@ class Session {
       .single();
     
     if (error) {
+      console.error('Session update error:', error);
       throw error;
     }
     
+    console.log(`✅ Session updated in DB: ${sessionId}`);
     return data;
   }
 
@@ -62,6 +72,7 @@ class Session {
       .eq('session_id', sessionId);
     
     if (error) {
+      console.error('Session delete error:', error);
       throw error;
     }
   }

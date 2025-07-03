@@ -4,16 +4,19 @@ const supabase = require('../config/supabase');
 
 class SupabaseSessionStore extends EventEmitter {
   constructor() {
-    super(); // Call EventEmitter constructor
+    super();
     this.sessions = new Map(); // In-memory cache for performance
   }
 
   async get(sessionId, callback) {
     try {
+      console.log(`📋 Getting session: ${sessionId}`);
+      
       // First check in-memory cache
       if (this.sessions.has(sessionId)) {
         const cachedSession = this.sessions.get(sessionId);
         if (cachedSession.expires > Date.now()) {
+          console.log(`✅ Session found in cache: ${sessionId}`);
           return callback(null, cachedSession.data);
         } else {
           this.sessions.delete(sessionId);
@@ -23,13 +26,18 @@ class SupabaseSessionStore extends EventEmitter {
       // Check database
       const sessionRecord = await Session.findById(sessionId);
       if (sessionRecord && sessionRecord.session_data) {
+        console.log(`✅ Session found in database: ${sessionId}`);
+        
         // Cache in memory
         this.sessions.set(sessionId, {
           data: sessionRecord.session_data,
           expires: new Date(sessionRecord.expires_at).getTime()
         });
+        
+        // Return the session data directly
         callback(null, sessionRecord.session_data);
       } else {
+        console.log(`❌ Session not found: ${sessionId}`);
         callback(null, null);
       }
     } catch (error) {
@@ -40,6 +48,8 @@ class SupabaseSessionStore extends EventEmitter {
 
   async set(sessionId, sessionData, callback) {
     try {
+      console.log(`💾 Setting session: ${sessionId}`);
+      
       // Update in-memory cache
       this.sessions.set(sessionId, {
         data: sessionData,
@@ -51,8 +61,10 @@ class SupabaseSessionStore extends EventEmitter {
       
       if (existingSession) {
         await Session.update(sessionId, sessionData);
+        console.log(`✅ Session updated: ${sessionId}`);
       } else {
         await Session.create(sessionId, sessionData.userId || null, sessionData);
+        console.log(`✅ Session created: ${sessionId}`);
       }
       
       callback(null);
@@ -64,12 +76,15 @@ class SupabaseSessionStore extends EventEmitter {
 
   async destroy(sessionId, callback) {
     try {
+      console.log(`🗑️ Destroying session: ${sessionId}`);
+      
       // Remove from in-memory cache
       this.sessions.delete(sessionId);
       
       // Remove from database
       await Session.delete(sessionId);
       
+      console.log(`✅ Session destroyed: ${sessionId}`);
       callback(null);
     } catch (error) {
       console.error('Session destroy error:', error);
@@ -79,6 +94,8 @@ class SupabaseSessionStore extends EventEmitter {
 
   async touch(sessionId, sessionData, callback) {
     try {
+      console.log(`👆 Touching session: ${sessionId}`);
+      
       // Update in-memory cache
       if (this.sessions.has(sessionId)) {
         this.sessions.set(sessionId, {
@@ -129,40 +146,6 @@ class SupabaseSessionStore extends EventEmitter {
       console.error('Session clear error:', error);
       callback(error);
     }
-  }
-
-  // Required method for express-session
-  createSession(req, sessionData) {
-    const ExpressSession = require('express-session').Session;
-    const session = new ExpressSession(req, sessionData);
-    return session;
-  }
-
-  // Required method for express-session
-  regenerate(req, callback) {
-    const self = this;
-    self.destroy(req.sessionID, function(err) {
-      if (err) return callback(err);
-      
-      // Generate new session ID
-      req.sessionID = require('uid-safe').sync(24);
-      
-      // Create new session
-      const session = self.createSession(req, {});
-      req.session = session;
-      
-      callback(null);
-    });
-  }
-
-  // Required method for express-session
-  load(sessionId, callback) {
-    this.get(sessionId, callback);
-  }
-
-  // Required method for express-session
-  save(sessionId, sessionData, callback) {
-    this.set(sessionId, sessionData, callback);
   }
 
   // Clean up expired sessions periodically

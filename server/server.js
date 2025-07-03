@@ -1068,7 +1068,7 @@ app.get('/auth/google/callback', async (req, res) => {
 
         // Exchange code for tokens
         console.log('🔄 Exchanging code for tokens...');
-        const { tokens } = await googleClient.getAccessToken(code);
+        const { tokens } = await googleClient.getToken(code);
         console.log('✅ Tokens received');
 
         // Get user info
@@ -1079,6 +1079,7 @@ app.get('/auth/google/callback', async (req, res) => {
         });
 
         const payload = ticket.getPayload();
+        const googleId = payload.sub;
         console.log('👤 User info:', {
             id: payload.sub,
             email: payload.email,

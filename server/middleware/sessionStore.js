@@ -114,6 +114,54 @@ class SupabaseSessionStore extends EventEmitter {
     }
   }
 
+  // CRITICAL: Add the missing createSession method that express-session expects
+  createSession(req, sessionData) {
+    console.log(`🆕 Creating session object for: ${req.sessionID}`);
+    
+    // Create a session object that express-session can work with
+    const session = {
+      ...sessionData,
+      cookie: sessionData.cookie || {
+        path: '/',
+        _expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        originalMaxAge: 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax'
+      },
+      // Add required session methods
+      save: (callback) => {
+        this.set(req.sessionID, session, callback || (() => {}));
+      },
+      reload: (callback) => {
+        this.get(req.sessionID, (err, data) => {
+          if (err) return callback(err);
+          if (data) {
+            Object.assign(session, data);
+          }
+          callback(null);
+        });
+      },
+      destroy: (callback) => {
+        this.destroy(req.sessionID, callback || (() => {}));
+      },
+      regenerate: (callback) => {
+        this.destroy(req.sessionID, (err) => {
+          if (err) return callback(err);
+          // Generate new session ID would happen at express-session level
+          callback(null);
+        });
+      },
+      touch: () => {
+        if (session.cookie) {
+          session.cookie._expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        }
+      }
+    };
+
+    return session;
+  }
+
   async length(callback) {
     try {
       const { count, error } = await supabase
@@ -165,7 +213,7 @@ class SupabaseSessionStore extends EventEmitter {
       } catch (error) {
         console.error('Session cleanup error:', error);
       }
-    }, 15 * 60 * 1000); // Every 15 minutes
+    }, 15 * 60 * 60 * 1000); // Every 15 minutes
   }
 }
 

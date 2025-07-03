@@ -131,6 +131,40 @@ class SupabaseSessionStore extends EventEmitter {
     }
   }
 
+  // Required method for express-session
+  createSession(req, sessionData) {
+    const sessionId = req.sessionID;
+    const session = new (require('express-session').Session)(req, sessionData);
+    return session;
+  }
+
+  // Required method for express-session
+  regenerate(req, callback) {
+    const self = this;
+    self.destroy(req.sessionID, function(err) {
+      if (err) return callback(err);
+      
+      // Generate new session ID
+      req.sessionID = require('uid-safe').sync(24);
+      
+      // Create new session
+      const session = self.createSession(req, {});
+      req.session = session;
+      
+      callback(null);
+    });
+  }
+
+  // Required method for express-session
+  load(sessionId, callback) {
+    this.get(sessionId, callback);
+  }
+
+  // Required method for express-session
+  save(sessionId, sessionData, callback) {
+    this.set(sessionId, sessionData, callback);
+  }
+
   // Clean up expired sessions periodically
   startCleanup() {
     setInterval(async () => {

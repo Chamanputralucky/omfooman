@@ -22,7 +22,7 @@ class SupabaseSessionStore extends EventEmitter {
 
       // Check database
       const sessionRecord = await Session.findById(sessionId);
-      if (sessionRecord) {
+      if (sessionRecord && sessionRecord.session_data) {
         // Cache in memory
         this.sessions.set(sessionId, {
           data: sessionRecord.session_data,
@@ -133,8 +133,8 @@ class SupabaseSessionStore extends EventEmitter {
 
   // Required method for express-session
   createSession(req, sessionData) {
-    const sessionId = req.sessionID;
-    const session = new (require('express-session').Session)(req, sessionData);
+    const ExpressSession = require('express-session').Session;
+    const session = new ExpressSession(req, sessionData);
     return session;
   }
 

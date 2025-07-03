@@ -1,7 +1,9 @@
+const { EventEmitter } = require('events');
 const Session = require('../models/Session');
 
-class SupabaseSessionStore {
+class SupabaseSessionStore extends EventEmitter {
   constructor() {
+    super(); // Call EventEmitter constructor
     this.sessions = new Map(); // In-memory cache for performance
   }
 

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Send, Paperclip, Settings, X, FileText, Image, File } from 'lucide-react';
+import { Send, Paperclip, Settings, X, FileText, Image, File, Menu } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ToolsPanel } from './ToolsPanel';
 import { ModelSelector } from './ModelSelector';
@@ -31,7 +31,11 @@ interface AttachmentPreview {
   preview?: string;
 }
 
-export const ChatInterface: React.FC = () => {
+interface ChatInterfaceProps {
+  onToggleSidebar?: () => void;
+}
+
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
   const { chatId } = useParams();
   const navigate = useNavigate();
   const [input, setInput] = useState('');
@@ -122,6 +126,30 @@ export const ChatInterface: React.FC = () => {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Function to render message content with proper link handling
+  const renderMessageContent = (content: string) => {
+    // Split content by URLs and render them as links
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = content.split(urlRegex);
+    
+    return parts.map((part, index) => {
+      if (urlRegex.test(part)) {
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 underline break-all"
+          >
+            {part}
+          </a>
+        );
+      }
+      return <span key={index} className="whitespace-pre-wrap break-words">{part}</span>;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -224,12 +252,25 @@ export const ChatInterface: React.FC = () => {
       {/* Header */}
       <div className="border-b border-gray-200 p-4 flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <h1 className="text-lg font-semibold text-gray-900">
+          {/* Mobile menu button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Menu}
+            onClick={onToggleSidebar}
+            className="lg:hidden"
+          />
+          <h1 className="text-lg font-semibold text-gray-900 truncate">
             {chatId && chatId !== 'new' ? 'Chat' : 'New Chat'}
           </h1>
-          <ModelSelector />
+          <div className="hidden sm:block">
+            <ModelSelector />
+          </div>
         </div>
         <div className="flex items-center space-x-2">
+          <div className="sm:hidden">
+            <ModelSelector />
+          </div>
           <Button 
             variant="ghost" 
             size="sm" 
@@ -242,14 +283,14 @@ export const ChatInterface: React.FC = () => {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="flex flex-col items-center justify-center h-full text-center px-4">
               <div className="max-w-md">
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                <h2 className="text-xl lg:text-2xl font-semibold text-gray-900 mb-4">
                   Where would you like to start?
                 </h2>
-                <p className="text-gray-600 mb-8">
+                <p className="text-gray-600 mb-6 lg:mb-8 text-sm lg:text-base">
                   I can help you with Google Drive, Gmail, Calendar, file analysis, and more. Just ask me anything or upload a file!
                 </p>
                 <div className="grid grid-cols-1 gap-3 text-sm">
@@ -269,20 +310,22 @@ export const ChatInterface: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto space-y-6">
+            <div className="max-w-4xl mx-auto space-y-4 lg:space-y-6">
               {messages.map((message) => (
                 <div
                   key={message.id}
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                    className={`max-w-[85%] lg:max-w-[80%] rounded-2xl px-4 py-3 ${
                       message.role === 'user'
                         ? 'bg-gray-900 text-white'
                         : 'bg-gray-100 text-gray-900'
                     }`}
                   >
-                    <div className="whitespace-pre-wrap">{message.content}</div>
+                    <div className="break-words overflow-wrap-anywhere">
+                      {renderMessageContent(message.content)}
+                    </div>
                     
                     {/* Attachments */}
                     {message.attachments && message.attachments.length > 0 && (
@@ -296,9 +339,9 @@ export const ChatInterface: React.FC = () => {
                                 message.role === 'user' ? 'bg-gray-800' : 'bg-gray-200'
                               }`}
                             >
-                              <IconComponent className="w-4 h-4" />
-                              <span className="text-sm truncate">{attachment.original_name}</span>
-                              <span className="text-xs opacity-70">
+                              <IconComponent className="w-4 h-4 flex-shrink-0" />
+                              <span className="text-sm truncate flex-1 min-w-0">{attachment.original_name}</span>
+                              <span className="text-xs opacity-70 flex-shrink-0">
                                 {formatFileSize(attachment.file_size)}
                               </span>
                             </div>
@@ -309,16 +352,16 @@ export const ChatInterface: React.FC = () => {
                     
                     {/* Message metadata */}
                     <div
-                      className={`text-xs mt-2 flex items-center justify-between ${
+                      className={`text-xs mt-2 flex flex-wrap items-center gap-2 ${
                         message.role === 'user' ? 'text-gray-300' : 'text-gray-500'
                       }`}
                     >
                       <span>{new Date(message.created_at).toLocaleTimeString()}</span>
                       {message.model && (
-                        <span className="ml-2">• {message.model}</span>
+                        <span>• {message.model}</span>
                       )}
                       {message.tools_used && message.tools_used.length > 0 && (
-                        <span className="ml-2">• Tools: {message.tools_used.join(', ')}</span>
+                        <span className="break-all">• Tools: {message.tools_used.join(', ')}</span>
                       )}
                     </div>
                   </div>
@@ -342,12 +385,25 @@ export const ChatInterface: React.FC = () => {
         </div>
 
         {/* Tools Panel */}
-        {showToolsPanel && <ToolsPanel onClose={() => setShowToolsPanel(false)} />}
+        {showToolsPanel && (
+          <div className="hidden lg:block">
+            <ToolsPanel onClose={() => setShowToolsPanel(false)} />
+          </div>
+        )}
       </div>
+
+      {/* Mobile Tools Panel Overlay */}
+      {showToolsPanel && (
+        <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setShowToolsPanel(false)}>
+          <div className="absolute right-0 top-0 h-full w-80 max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
+            <ToolsPanel onClose={() => setShowToolsPanel(false)} />
+          </div>
+        </div>
+      )}
 
       {/* Input */}
       <div className="border-t border-gray-200 p-4">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           {/* Attachment Previews */}
           {attachments.length > 0 && (
             <div className="mb-4 flex flex-wrap gap-2">
@@ -360,10 +416,10 @@ export const ChatInterface: React.FC = () => {
                     <img
                       src={attachment.preview}
                       alt={attachment.file.name}
-                      className="w-8 h-8 object-cover rounded"
+                      className="w-8 h-8 object-cover rounded flex-shrink-0"
                     />
                   ) : (
-                    <File className="w-8 h-8 text-gray-500" />
+                    <File className="w-8 h-8 text-gray-500 flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
@@ -375,7 +431,7 @@ export const ChatInterface: React.FC = () => {
                   </div>
                   <button
                     onClick={() => removeAttachment(attachment.id)}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-gray-600 flex-shrink-0"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -385,7 +441,7 @@ export const ChatInterface: React.FC = () => {
           )}
 
           <form onSubmit={handleSubmit} className="relative">
-            <div className="flex items-end space-x-3 bg-gray-50 rounded-2xl p-3">
+            <div className="flex items-end space-x-2 lg:space-x-3 bg-gray-50 rounded-2xl p-3">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -399,29 +455,29 @@ export const ChatInterface: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 icon={Paperclip}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 flex-shrink-0"
                 onClick={() => fileInputRef.current?.click()}
               />
               
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <textarea
                   ref={textareaRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="What do you want to know? You can also upload files for analysis..."
-                  className="w-full bg-transparent border-none outline-none resize-none text-gray-900 placeholder-gray-500 max-h-[120px]"
+                  className="w-full bg-transparent border-none outline-none resize-none text-gray-900 placeholder-gray-500 max-h-[120px] text-sm lg:text-base"
                   rows={1}
                   disabled={loading}
                 />
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 flex-shrink-0">
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-500 hover:text-gray-700 hidden sm:block"
                   onClick={() => setShowToolsPanel(!showToolsPanel)}
                 >
                   Tools
@@ -431,7 +487,7 @@ export const ChatInterface: React.FC = () => {
                   type="submit"
                   size="sm"
                   disabled={(!input.trim() && attachments.length === 0) || loading}
-                  className="bg-gray-900 text-white hover:bg-gray-800 rounded-full w-8 h-8 p-0"
+                  className="bg-gray-900 text-white hover:bg-gray-800 rounded-full w-8 h-8 p-0 flex-shrink-0"
                 >
                   {loading ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />

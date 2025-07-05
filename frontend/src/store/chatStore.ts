@@ -49,7 +49,7 @@ export const useChatStore = create<ChatState>()(
       chats: [],
       currentChatId: null,
       isLoading: false,
-      selectedModel: 'gpt-4',
+      selectedModel: 'gpt-4.1', // Updated default model
       enabledTools: [],
       refreshTrigger: 0,
       setMessages: (messages) => set({ messages }),

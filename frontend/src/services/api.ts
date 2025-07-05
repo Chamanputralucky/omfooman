@@ -60,6 +60,14 @@ export const authAPI = {
     console.log('👋 Logging out...');
     return api.post('/auth/logout');
   },
+  login: (credentials: { email: string; password: string }) => {
+    console.log('🔑 Logging in with email/password...');
+    return api.post('/auth/login', credentials);
+  },
+  register: (userData: { email: string; password: string; name: string }) => {
+    console.log('📝 Registering new user...');
+    return api.post('/auth/register', userData);
+  },
   googleLogin: () => {
     const googleAuthUrl = `${API_BASE_URL}/auth/google`;
     console.log('🔗 Redirecting to Google OAuth:', googleAuthUrl);

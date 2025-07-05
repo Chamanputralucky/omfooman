@@ -1,36 +1,57 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Github } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { authAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 
 export const LoginPage: React.FC = () => {
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
   const navigate = useNavigate();
   const { setUser } = useAuthStore();
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     
+    if (!isLogin && password !== confirmPassword) {
+      setError('Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+    
     try {
-      // Replace this with your actual email/password login API call
-      const response = await authAPI.login({ email, password });
-      
-      if (response.data.user) {
-        setUser(response.data.user);
-        navigate('/chat'); // Navigate to chat after successful login
+      if (isLogin) {
+        // Login with email/password
+        const response = await authAPI.login({ email, password });
+        
+        if (response.data.user) {
+          setUser(response.data.user);
+          navigate('/chat');
+        }
+      } else {
+        // Register new account
+        const response = await authAPI.register({ email, password, name });
+        
+        if (response.data.user) {
+          setUser(response.data.user);
+          navigate('/chat');
+        }
       }
     } catch (error: any) {
-      console.error('Login failed:', error);
-      setError(error.message || 'Login failed. Please try again.');
+      console.error('Auth failed:', error);
+      setError(error.response?.data?.message || error.message || `${isLogin ? 'Login' : 'Registration'} failed. Please try again.`);
     } finally {
       setIsLoading(false);
     }
@@ -51,21 +72,24 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left side - Welcome message and abstract design */}
-      <div className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-12 relative overflow-hidden">
-        <div className="max-w-md z-10">
-          <div className="flex items-center mb-8">
+      <div className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-6 lg:p-12 relative overflow-hidden">
+        <div className="max-w-md z-10 text-center lg:text-left">
+          <div className="flex items-center justify-center lg:justify-start mb-8">
             <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center mr-3">
               <div className="w-4 h-4 bg-white rounded-sm"></div>
             </div>
             <span className="text-xl font-semibold text-gray-900">Chat Bot</span>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-6">
+          <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-6">
             Welcome to MCP Chat Bot
           </h1>
-          <p className="text-lg text-gray-600 leading-relaxed">
-            Sign in to experience our AI-powered conversational tools with seamless Google Workspace integration.
+          <p className="text-base lg:text-lg text-gray-600 leading-relaxed">
+            {isLogin 
+              ? 'Sign in to experience our AI-powered conversational tools with seamless Google Workspace integration.'
+              : 'Create your account to get started with AI-powered conversations and Google Workspace integration.'
+            }
           </p>
         </div>
         
@@ -86,12 +110,19 @@ export const LoginPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Right side - Login form */}
-      <div className="flex-1 flex items-center justify-center p-12 bg-white">
+      {/* Right side - Auth form */}
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-white">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
-            <p className="text-gray-600">Sign in to continue to your account</p>
+            <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+              {isLogin ? 'Welcome Back' : 'Create Account'}
+            </h2>
+            <p className="text-gray-600">
+              {isLogin 
+                ? 'Sign in to continue to your account' 
+                : 'Sign up to get started with your new account'
+              }
+            </p>
           </div>
 
           {error && (
@@ -100,7 +131,19 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          <form onSubmit={handleEmailLogin} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {!isLogin && (
+              <Input
+                label="Full Name"
+                type="text"
+                placeholder="John Doe"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                icon={<User className="w-5 h-5 text-gray-400" />}
+                required
+              />
+            )}
+
             <Input
               label="Email"
               type="email"
@@ -111,15 +154,45 @@ export const LoginPage: React.FC = () => {
               required
             />
 
-            <Input
-              label="Password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              icon={<Lock className="w-5 h-5 text-gray-400" />}
-              required
-            />
+            <div className="relative">
+              <Input
+                label="Password"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                icon={<Lock className="w-5 h-5 text-gray-400" />}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-8 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+
+            {!isLogin && (
+              <div className="relative">
+                <Input
+                  label="Confirm Password"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  icon={<Lock className="w-5 h-5 text-gray-400" />}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-8 text-gray-400 hover:text-gray-600"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            )}
 
             <Button
               type="submit"
@@ -127,7 +200,7 @@ export const LoginPage: React.FC = () => {
               loading={isLoading}
               size="lg"
             >
-              Sign in
+              {isLogin ? 'Sign in' : 'Create Account'}
             </Button>
           </form>
 
@@ -141,7 +214,7 @@ export const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="mt-6">
               <Button
                 variant="outline"
                 onClick={handleGoogleLogin}
@@ -155,27 +228,30 @@ export const LoginPage: React.FC = () => {
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                Google
-              </Button>
-
-              <Button
-                variant="outline"
-                className="w-full"
-                size="lg"
-                icon={Github}
-                disabled={isLoading}
-              >
-                GitHub
+                Continue with Google
               </Button>
             </div>
           </div>
 
-          <p className="mt-8 text-center text-sm text-gray-600">
-            Don't have an account?{' '}
-            <Link to="/signup" className="font-medium text-gray-900 hover:text-gray-700 transition-colors">
-              Sign up
-            </Link>
-          </p>
+          <div className="mt-8 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError('');
+                setEmail('');
+                setPassword('');
+                setConfirmPassword('');
+                setName('');
+              }}
+              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              {isLogin 
+                ? "Don't have an account? Sign up" 
+                : "Already have an account? Sign in"
+              }
+            </button>
+          </div>
         </div>
       </div>
     </div>

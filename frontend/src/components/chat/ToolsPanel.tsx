@@ -146,10 +146,10 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ onClose }) => {
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-medium text-gray-900">
+                          <h4 className="text-sm font-medium text-gray-900 break-words">
                             {tool.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                           </h4>
-                          <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                          <p className="text-xs text-gray-600 mt-1 break-words">
                             {tool.description}
                           </p>
                         </div>

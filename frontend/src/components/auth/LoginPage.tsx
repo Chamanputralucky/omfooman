@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { authAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { useNavigate } from 'react-router-dom';
 
 export const LoginPage: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -20,16 +20,46 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { setUser } = useAuthStore();
 
+  const validateForm = () => {
+    if (!email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    
+    if (!password.trim()) {
+      setError('Password is required');
+      return false;
+    }
+    
+    if (!isLogin) {
+      if (!name.trim()) {
+        setError('Name is required');
+        return false;
+      }
+      
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters');
+        return false;
+      }
+      
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return false;
+      }
+    }
+    
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
     
-    if (!isLogin && password !== confirmPassword) {
-      setError('Passwords do not match');
-      setIsLoading(false);
+    if (!validateForm()) {
       return;
     }
+    
+    setIsLoading(true);
     
     try {
       if (isLogin) {
@@ -51,7 +81,15 @@ export const LoginPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Auth failed:', error);
-      setError(error.response?.data?.message || error.message || `${isLogin ? 'Login' : 'Registration'} failed. Please try again.`);
+      const errorMessage = error.response?.data?.message || error.message;
+      
+      if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
+        setError('An account with this email already exists. Please try logging in instead.');
+      } else if (errorMessage.includes('invalid') || errorMessage.includes('incorrect')) {
+        setError('Invalid email or password. Please check your credentials.');
+      } else {
+        setError(errorMessage || `${isLogin ? 'Login' : 'Registration'} failed. Please try again.`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -71,6 +109,17 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const toggleMode = () => {
+    setIsLogin(!isLogin);
+    setError('');
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setName('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+  };
+
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left side - Welcome message and abstract design */}
@@ -80,17 +129,39 @@ export const LoginPage: React.FC = () => {
             <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center mr-3">
               <div className="w-4 h-4 bg-white rounded-sm"></div>
             </div>
-            <span className="text-xl font-semibold text-gray-900">Chat Bot</span>
+            <span className="text-xl font-semibold text-gray-900">MCP Chat Bot</span>
           </div>
           <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-6">
-            Welcome to MCP Chat Bot
+            {isLogin ? 'Welcome Back!' : 'Join MCP Chat Bot'}
           </h1>
           <p className="text-base lg:text-lg text-gray-600 leading-relaxed">
             {isLogin 
-              ? 'Sign in to experience our AI-powered conversational tools with seamless Google Workspace integration.'
-              : 'Create your account to get started with AI-powered conversations and Google Workspace integration.'
+              ? 'Sign in to continue your AI-powered conversations with seamless Google Workspace integration.'
+              : 'Create your account to get started with AI-powered conversations, file analysis, and Google Workspace integration.'
             }
           </p>
+          
+          {/* Feature highlights for signup */}
+          {!isLogin && (
+            <div className="mt-8 space-y-3 text-sm text-gray-600">
+              <div className="flex items-center">
+                <div className="w-2 h-2 bg-gray-400 rounded-full mr-3"></div>
+                <span>AI-powered chat with GPT-4.1 models</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-2 h-2 bg-gray-400 rounded-full mr-3"></div>
+                <span>Google Workspace integration (Drive, Gmail, Calendar)</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-2 h-2 bg-gray-400 rounded-full mr-3"></div>
+                <span>File upload and analysis capabilities</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-2 h-2 bg-gray-400 rounded-full mr-3"></div>
+                <span>Project organization and chat history</span>
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Abstract lines */}
@@ -115,18 +186,18 @@ export const LoginPage: React.FC = () => {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {isLogin ? 'Welcome Back' : 'Create Account'}
+              {isLogin ? 'Welcome Back' : 'Create Your Account'}
             </h2>
             <p className="text-gray-600">
               {isLogin 
                 ? 'Sign in to continue to your account' 
-                : 'Sign up to get started with your new account'
+                : 'Join thousands of users already using MCP Chat Bot'
               }
             </p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}
@@ -136,7 +207,7 @@ export const LoginPage: React.FC = () => {
               <Input
                 label="Full Name"
                 type="text"
-                placeholder="John Doe"
+                placeholder="Enter your full name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 icon={<User className="w-5 h-5 text-gray-400" />}
@@ -145,9 +216,9 @@ export const LoginPage: React.FC = () => {
             )}
 
             <Input
-              label="Email"
+              label="Email Address"
               type="email"
-              placeholder="user@example.com"
+              placeholder="Enter your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               icon={<Mail className="w-5 h-5 text-gray-400" />}
@@ -158,7 +229,7 @@ export const LoginPage: React.FC = () => {
               <Input
                 label="Password"
                 type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
+                placeholder={isLogin ? "Enter your password" : "Create a password (min. 6 characters)"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 icon={<Lock className="w-5 h-5 text-gray-400" />}
@@ -167,7 +238,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-8 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-8 text-gray-400 hover:text-gray-600 transition-colors"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
@@ -178,7 +249,7 @@ export const LoginPage: React.FC = () => {
                 <Input
                   label="Confirm Password"
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="••••••••"
+                  placeholder="Confirm your password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   icon={<Lock className="w-5 h-5 text-gray-400" />}
@@ -187,7 +258,7 @@ export const LoginPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-8 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-8 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -200,7 +271,7 @@ export const LoginPage: React.FC = () => {
               loading={isLoading}
               size="lg"
             >
-              {isLogin ? 'Sign in' : 'Create Account'}
+              {isLogin ? 'Sign In' : 'Create Account'}
             </Button>
           </form>
 
@@ -210,7 +281,7 @@ export const LoginPage: React.FC = () => {
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">OR CONTINUE WITH</span>
+                <span className="px-2 bg-white text-gray-500">OR</span>
               </div>
             </div>
 
@@ -228,7 +299,7 @@ export const LoginPage: React.FC = () => {
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                Continue with Google
+                {isLogin ? 'Continue with Google' : 'Sign up with Google'}
               </Button>
             </div>
           </div>
@@ -236,22 +307,31 @@ export const LoginPage: React.FC = () => {
           <div className="mt-8 text-center">
             <button
               type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setError('');
-                setEmail('');
-                setPassword('');
-                setConfirmPassword('');
-                setName('');
-              }}
-              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              onClick={toggleMode}
+              className="text-sm text-gray-600 hover:text-gray-900 transition-colors font-medium"
             >
               {isLogin 
-                ? "Don't have an account? Sign up" 
+                ? "Don't have an account? Create one now" 
                 : "Already have an account? Sign in"
               }
             </button>
           </div>
+
+          {/* Terms and Privacy for signup */}
+          {!isLogin && (
+            <div className="mt-6 text-center">
+              <p className="text-xs text-gray-500">
+                By creating an account, you agree to our{' '}
+                <a href="#" className="text-gray-700 hover:text-gray-900 underline">
+                  Terms of Service
+                </a>{' '}
+                and{' '}
+                <a href="#" className="text-gray-700 hover:text-gray-900 underline">
+                  Privacy Policy
+                </a>
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
